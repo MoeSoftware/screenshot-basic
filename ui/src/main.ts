@@ -17,6 +17,7 @@ class ScreenshotRequest {
     encoding: 'jpg' | 'png' | 'webp';
     quality: number;
     headers: any;
+    crop: any;
 
     correlation: string;
 
@@ -186,7 +187,18 @@ class ScreenshotUI {
         }
 
         // actual encoding
-        const imageURL = canvas.toDataURL(type, request.quality);
+        let imageURL = canvas.toDataURL(type, request.quality);
+
+        let crop = function(canvas, offsetX, offsetY, width, height) {
+            let buffer = document.createElement('canvas');
+            let b_ctx = buffer.getContext('2d');
+
+            buffer.width = width;
+            buffer.height = height;
+            b_ctx.drawImage(canvas, offsetX, offsetY, width, height, 0, 0, buffer.width, buffer.height);
+                
+            return buffer.toDataURL();
+        };
 
         const getFormData = () => {
             const formData = new FormData();
@@ -194,16 +206,20 @@ class ScreenshotUI {
 
             return formData;
         };
+        let body = (request.targetField) ? getFormData() : JSON.stringify({
+            data: imageURL,
+            id: request.correlation
+        });
 
+        if ( request.crop ) {
+            imageURL = crop(canvas, request.crop.offsetX, request.crop.offsetY, request.crop.width, request.crop.height);
+        }
         // upload the image somewhere
         fetch(request.targetURL, {
             method: 'POST',
             mode: 'cors',
             headers: request.headers,
-            body: (request.targetField) ? getFormData() : JSON.stringify({
-                data: imageURL,
-                id: request.correlation
-            })
+            body:body
         })
         .then(response => response.text())
         .then(text => {
